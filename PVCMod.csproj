@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.3.2" />
+    <Reference Include="NAudio">
+	    <HintPath>$(UserProfile)\.nuget\packages\naudio\2.2.1\lib\net6.0\NAudio.dll</HintPath>
+	    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </Reference>
+  </ItemGroup>
+
+</Project>

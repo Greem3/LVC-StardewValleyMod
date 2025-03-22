@@ -10,6 +10,9 @@ using StardewModdingAPI.Utilities;
 using StardewValley;
 using xTile.Layers;
 using PVCMod;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 
 namespace ProximityVoiceChatMod
 {
@@ -22,30 +25,43 @@ namespace ProximityVoiceChatMod
         private List<Farmer> players;
         private bool isMicrophoneActive;
         private Texture2D microphoneTexture;
+        private ModConfig Config;
 
         public override void Entry(IModHelper helper)
         {
             Monitor.Log("Inicializando mod...", LogLevel.Info);
             players = new List<Farmer>();
+
+            Config = Helper.ReadConfig<ModConfig>();
+
             microphoneCapture = new MicrophoneCapture();
-            audioTransmitter = new AudioTransmitter("127.0.0.1", 5000);
-            audioReceiver = new AudioReceiver(5000);
+            audioReceiver = new AudioReceiver(Config.DefaultPort);
             audioLoopback = new AudioLoopback();
 
-            Monitor.Log("Cargando texturas...", LogLevel.Info);
-            microphoneTexture = helper.ModContent.Load<Texture2D>("assets/MicrophoneNew.png");
+            Monitor.Log("Cargando assets...", LogLevel.Info);
+            microphoneTexture = helper.ModContent.Load<Texture2D>("assets/Microphone.png");
 
-            Monitor.Log("Configurando Eventos...", LogLevel.Info);
-            microphoneCapture.AudioDataAvailable += this.OnAudioDataAvailable;
-            helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
+            Monitor.Log("Configurando Eventos del Mod...", LogLevel.Info);
 
-            helper.Events.Input.ButtonPressed += this.OnButtonPressed;
-            helper.Events.Input.ButtonReleased += this.OnButtonReleased;
-            helper.Events.Display.RenderedHud += this.OnRenderedHud;
+            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
+
+            helper.Events.Input.ButtonPressed += OnButtonPressed;
+            helper.Events.Input.ButtonReleased += OnButtonReleased;
+            helper.Events.Display.RenderedHud += OnRenderedHud;
+
+            Monitor.Log("Configurando Eventos del Microfono...", LogLevel.Info);
+
+            microphoneCapture.AudioDataAvailable += OnAudioDataAvailable;
+        }
+
+        private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        {
+            Monitor.Log($"Iniciando transmisor de audio en la IP {Config.ServerIp}", LogLevel.Info);
+            audioTransmitter = new AudioTransmitter(Config.ServerIp);
 
             try
             {
-                Monitor.Log("Starting audio receiver...", LogLevel.Info);
                 Task.Run(() => this.audioReceiver.StartReceivingAsync());
             }
             catch (Exception ex)
@@ -118,7 +134,7 @@ namespace ProximityVoiceChatMod
             {
                 SpriteBatch sprite = e.SpriteBatch;
 
-                Vector2 position = new Vector2(25, 25);
+                Vector2 position = new Vector2(Game1.player.Position.X, Game1.player.Position.Y - 25);
 
                 sprite.Draw(microphoneTexture, position, Color.White);
             }
@@ -129,8 +145,12 @@ namespace ProximityVoiceChatMod
             // Transmitir audio a todos los jugadores en proximidad
             foreach (var player in players)
             {
-                if (player != Game1.player)
-                    audioTransmitter.SendAudioAsync(audioData).Wait();
+                float distance = Vector2.Distance(player.Position, Game1.player.Position);
+
+                if (distance > 5f * Game1.tileSize) // Rango de proximidad
+                    return;
+
+                audioTransmitter.SendAudioAsync(audioData).Wait();
             }
         }
 
@@ -142,27 +162,13 @@ namespace ProximityVoiceChatMod
             if (!Context.IsMultiplayer)
                 return;
 
-            // Obtener la lista de jugadores
             players.Clear();
-            foreach (var player in Game1.getOnlineFarmers())
-            {
-                players.Add(player);
-            }
 
-            // Calcular distancias y transmitir audio
-            foreach (var player in players)
-            {
-                if (player == Game1.player)
-                    continue;
-
-                float distance = Vector2.Distance(player.Position, Game1.player.Position);
-
-                if (distance <= 5f * Game1.tileSize) // Rango de proximidad
-                {
-                    // Transmitir audio a este jugador
-                    // (ya se maneja en OnAudioDataAvailable)
-                }
-            }
+            players.AddRange(
+                Game1.getOnlineFarmers()
+                    .Where(p => p.currentLocation == Game1.player.currentLocation)
+                    .Where(p => p != Game1.player)
+                );
         }
     }
 }

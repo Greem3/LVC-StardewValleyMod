@@ -15,13 +15,22 @@ namespace PVCMod
         private WaveOutEvent waveOut;
         private BufferedWaveProvider waveProvider;
 
+        public AudioReceiver()
+        {
+            udpClient = new UdpClient(24643);
+            waveOut = new WaveOutEvent();
+            waveProvider = new BufferedWaveProvider(new WaveFormat(44100, 1));
+            waveOut.Init(waveProvider);
+            ChangeVolume();
+        }
+
         public AudioReceiver(int port)
         {
             udpClient = new UdpClient(port);
             waveOut = new WaveOutEvent();
             waveProvider = new BufferedWaveProvider(new WaveFormat(44100, 1));
             waveOut.Init(waveProvider);
-            UpdateVolume();
+            ChangeVolume();
         }
 
         public async Task StartReceivingAsync()
@@ -39,7 +48,7 @@ namespace PVCMod
             waveOut.Stop();
         }
 
-        public void UpdateVolume()
+        public void ChangeVolume()
         {
             float volume = Game1.options.soundVolumeLevel;
 

@@ -13,6 +13,12 @@ namespace PVCMod
         private UdpClient udpClient;
         private IPEndPoint remoteEndPoint;
 
+        public AudioTransmitter(string ipAddress)
+        {
+            udpClient = new UdpClient();
+            remoteEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), 24643);
+        }
+
         public AudioTransmitter(string ipAddress, int port)
         {
             udpClient = new UdpClient();

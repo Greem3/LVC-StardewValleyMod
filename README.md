@@ -13,10 +13,10 @@ Clarification: This mod uses Discord to divide users by location.
 
 - Copy your discord user id
 - Go to "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\mods\LVCMod\config.json" (If you don't have it purchased on Steam, you have to look for it in the other folder you have)
-- Paste your user id into "HostDiscordUserId"
+- Paste your user id into "DiscordUserId"
 - Create a Discord Server (or use and existing one)
 - Copy your guild ID (To be able to do this, you have to activate developer mode)
-- Paste your guild id into "DiscordServerId"
+- Paste your guild id into "HostDiscordServerId"
 
 2 - Bot Configuration
 
@@ -25,7 +25,7 @@ Clarification: This mod uses Discord to divide users by location.
 - Go to "Bot" section, and click the button that says "Reset Token"
 - Copy your bot token
 - Go to "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\mods\LVCMod\config.json"
-- Paste your bot token into "DiscordBotToken"
+- Paste your bot token into "HostDiscordBotToken"
 - And you're done! :D
 
 ## [Config Voice Chat]

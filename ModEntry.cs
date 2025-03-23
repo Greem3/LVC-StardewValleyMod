@@ -63,15 +63,13 @@ namespace LVCMod
 
                 Config.HostSavesData[Game1.uniqueIDForThisGame].Players.Add(e.FromPlayerID, clientConfig.HostDiscordUserId);
 
-                Monitor.Log("Guardando nuevo jugador de la partida...", LogLevel.Info);
                 SaveConfig();
             }
 
             if (e.Type == "PVCPlayerWarped")
             {
                 var data = e.ReadAs<(Farmer Player, GameLocation beforeLocation)>();
-
-                Monitor.Log("Jugador warpeado", LogLevel.Info);
+                
                 await Bot.MoveToVoice(data.Player, data.beforeLocation.Name);
             }
 
@@ -81,7 +79,6 @@ namespace LVCMod
         {
             if (e.Player == Game1.MasterPlayer)
             {
-                Monitor.Log("Anfitrion Warpeado", LogLevel.Info);
                 await Bot.MoveToVoice(e.Player, e.OldLocation.Name);
                 return;
             }

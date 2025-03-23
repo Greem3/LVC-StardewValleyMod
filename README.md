@@ -2,8 +2,8 @@
 
 ## [Installation Guide]
 
-Download and Install SMAPI
-Unzip this Mod into the game's Mods folder.
+- Download and Install SMAPI
+- Unzip the mod version you want from the "DownloadRelease" folder in your mods folder
 
 ## [How Setup Voice Chat]
 

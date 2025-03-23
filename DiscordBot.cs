@@ -37,8 +37,6 @@ namespace LVCMod
 
             Guild = DiscordClient.GetGuild(Config.DiscordServerId);
 
-            Debug.WriteLine($"Guild: {Guild.Id}");
-
             if (GetCategoryByName(Config.StardewVoiceChatsCategory) is null)
                 await CreateVoiceChatsCategory();
 
@@ -56,8 +54,6 @@ namespace LVCMod
         {
             ulong discordUserId = Config.HostSavesData[Game1.uniqueIDForThisGame]
                 .Players[Convert.ToInt64(player.UniqueMultiplayerID)];
-
-            Debug.WriteLine($"Warped Player Discord Id: {discordUserId}");
 
             SocketGuildUser? user = Guild.GetUser(discordUserId);
 
@@ -97,8 +93,10 @@ namespace LVCMod
             );
         }
 
+        [Obsolete("It is not being used for now.")]
         public async Task SetupBot()
         {
+            throw new Exception("Not in use");
             SocketTextChannel? textChannel = Guild.DefaultChannel;
         }
 

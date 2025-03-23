@@ -1,4 +1,8 @@
 {
-  "ServerIp": "26.97.15.180",
-  "DefaultPort": 24643
+  "HostDiscordUserId": 0,
+  "DiscordServerId": 0,
+  "DiscordBotToken": "",
+  "ITalkChannelName": "ITalk",
+  "StardewVoiceChatsCategory": "Stardew Valley PVC",
+  "HostSavesData": {}
 }

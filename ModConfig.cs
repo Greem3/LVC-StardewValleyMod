@@ -8,9 +8,9 @@ namespace LVCMod
 {
     class ModConfig
     {
-        public ulong HostDiscordUserId { get; set; } = 0;
-        public ulong DiscordServerId { get; set; } = 0;
-        public string DiscordBotToken { get; set; } = "";
+        public ulong DiscordUserId { get; set; } = 0;
+        public ulong HostDiscordServerId { get; set; } = 0;
+        public string HostDiscordBotToken { get; set; } = "";
         public string ITalkChannelName { get; set; } = "";
         public string StardewVoiceChatsCategory { get; set; } = "";
         public Dictionary<ulong, PlayerData> HostSavesData { get; set; } = new();

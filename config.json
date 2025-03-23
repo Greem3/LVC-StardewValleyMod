@@ -1,8 +1,8 @@
 {
-  "HostDiscordUserId": 0,
-  "DiscordServerId": 0,
-  "DiscordBotToken": "",
+  "DiscordUserId": 0,
+  "HostDiscordServerId": 0,
+  "HostDiscordBotToken": "",
   "ITalkChannelName": "ITalk",
-  "StardewVoiceChatsCategory": "Stardew Valley PVC",
+  "StardewVoiceChatsCategory": "Stardew Valley LVC",
   "HostSavesData": {}
 }

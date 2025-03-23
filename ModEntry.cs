@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -12,13 +13,13 @@ namespace LVCMod
 
         public override void Entry(IModHelper helper)
         {
-            Config = Helper.ReadConfig<ModConfig>();
-
             helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
         }
 
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
+            Config = Helper.ReadConfig<ModConfig>();
+
             if (!Context.IsMultiplayer)
                 return;
 
@@ -34,16 +35,16 @@ namespace LVCMod
                 if (Config.HostSavesData.ContainsKey(saveId))
                     return;
 
-                Monitor.Log("Guardando nuevo mundo...", LogLevel.Info);
                 Config.HostSavesData.Add(saveId, new ModConfig.PlayerData());
-                Config.HostSavesData[saveId].Players.Add(Game1.MasterPlayer.UniqueMultiplayerID, Config.HostDiscordUserId);
+                Config.HostSavesData[saveId].Players.Add(Game1.MasterPlayer.UniqueMultiplayerID, Config.DiscordUserId);
 
                 SaveConfig();
+                return;
             }
 
             Helper.Multiplayer.SendMessage(
                 Config,
-                "PVCJoined",
+                "LVCJoined",
                 new[] {ModManifest.UniqueID},
                 new[] { Game1.MasterPlayer.UniqueMultiplayerID }
                 );
@@ -54,40 +55,47 @@ namespace LVCMod
             if (e.FromModID != ModManifest.UniqueID)
                 return;
 
-            if (e.Type == "PVCJoined")
+            if (!Context.IsMainPlayer)
+                return;
+
+            if (e.Type == "LVCJoined")
             {
                 ModConfig clientConfig = e.ReadAs<ModConfig>();
 
                 if (Config.HostSavesData[Game1.uniqueIDForThisGame].Players.ContainsKey(e.FromPlayerID))
                     return;
 
-                Config.HostSavesData[Game1.uniqueIDForThisGame].Players.Add(e.FromPlayerID, clientConfig.HostDiscordUserId);
+                Config.HostSavesData[Game1.uniqueIDForThisGame].Players.Add(e.FromPlayerID, clientConfig.DiscordUserId);
 
                 SaveConfig();
+
+                return;
             }
 
-            if (e.Type == "PVCPlayerWarped")
+            if (e.Type == "LVCPlayerWarped")
             {
-                var data = e.ReadAs<(Farmer Player, GameLocation beforeLocation)>();
-                
-                await Bot.MoveToVoice(data.Player, data.beforeLocation.Name);
+                var data = e.ReadAs<(long PlayerName, string newLocation, string oldLocation)>();
+
+                await Bot.MoveToVoice(data.PlayerName, data.newLocation, data.oldLocation);
+
+                return;
             }
 
         }
 
         private async void OnWarped(object? sender, WarpedEventArgs e)
         {
-            if (e.Player == Game1.MasterPlayer)
+            if (Context.IsMainPlayer)
             {
-                await Bot.MoveToVoice(e.Player, e.OldLocation.Name);
+                await Bot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name, e.OldLocation.Name);
                 return;
             }
 
-            (Farmer, GameLocation) message = (e.Player, e.OldLocation);
+            (long, string, string) message = (e.Player.UniqueMultiplayerID, e.NewLocation.Name ,e.OldLocation.Name);
 
             Helper.Multiplayer.SendMessage(
                 message,
-                "PVCPlayerWarped",
+                "LVCPlayerWarped",
                 new[] { ModManifest.UniqueID },
                 new[] { Game1.MasterPlayer.UniqueMultiplayerID }
                 );

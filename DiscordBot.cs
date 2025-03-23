@@ -32,28 +32,28 @@ namespace LVCMod
 
         private async Task OnReady()
         {
-            DiscordClient.SetGameAsync("Stardew Valley");
-            DiscordClient.SetCustomStatusAsync("Conversando con todos!");
-
-            Guild = DiscordClient.GetGuild(Config.DiscordServerId);
+            Guild = DiscordClient.GetGuild(Config.HostDiscordServerId);
 
             if (GetCategoryByName(Config.StardewVoiceChatsCategory) is null)
                 await CreateVoiceChatsCategory();
 
             if (GetVoiceChannelByName(Config.ITalkChannelName) is null)
                 await CreateVoiceChannel(Config.ITalkChannelName, false);
+
+            await DiscordClient.SetGameAsync("Stardew Valley");
+            await DiscordClient.SetCustomStatusAsync("Conversando con todos!");
         }
 
         private async Task Start()
         {
-            await DiscordClient.LoginAsync(TokenType.Bot, Config.DiscordBotToken);
+            await DiscordClient.LoginAsync(TokenType.Bot, Config.HostDiscordBotToken);
             await DiscordClient.StartAsync();
         }
 
-        public async Task MoveToVoice(Farmer player, string? previousLocation = null)
+        public async Task MoveToVoice(long playerId, string? newLocation, string? oldLocation = null)
         {
             ulong discordUserId = Config.HostSavesData[Game1.uniqueIDForThisGame]
-                .Players[Convert.ToInt64(player.UniqueMultiplayerID)];
+                .Players[playerId];
 
             SocketGuildUser? user = Guild.GetUser(discordUserId);
 
@@ -63,32 +63,29 @@ namespace LVCMod
             if (user.VoiceChannel is null)
                 return;
 
-            string currentLocation = player.currentLocation.Name;
-
-            SocketVoiceChannel? voiceChannel = GetVoiceChannelByName(currentLocation);
+            SocketVoiceChannel? voiceChannel = GetVoiceChannelByName(newLocation);
 
             if (voiceChannel is null)
             {
-                RestVoiceChannel channelId = await CreateVoiceChannel(currentLocation);
+                RestVoiceChannel channelId = await CreateVoiceChannel(newLocation);
                 
                 voiceChannel = Guild.GetVoiceChannel(channelId.Id);
             }
             
             await user.ModifyAsync(x => x.Channel = voiceChannel);
 
+            SocketVoiceChannel? previousVoiceChannel = GetVoiceChannelByName(oldLocation);
+
+            if (previousVoiceChannel is null) return;
+
             await DeleteVoiceChannel(
-                previousLocation,
-                () =>
+                oldLocation,
+                afterCondition:() =>
                 {
-                    SocketVoiceChannel? previousVoiceChannel = GetVoiceChannelByName(previousLocation);
+                    if (previousVoiceChannel.Users.Count == 0)
+                        return true;
 
-                    if (previousVoiceChannel is null)
-                        return false;
-
-                    if (previousVoiceChannel.Users.Count > 0)
-                        return false;
-
-                    return true;
+                    return false;
                 }
             );
         }

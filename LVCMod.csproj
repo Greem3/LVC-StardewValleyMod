@@ -7,12 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Discord.Net" Version="3.17.2" />
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.3.2" />
-    <Reference Include="NAudio">
-	    <HintPath>$(UserProfile)\.nuget\packages\naudio\2.2.1\lib\net6.0\NAudio.dll</HintPath>
-	    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    </Reference>
+    <PackageReference Include="System.Linq" Version="4.3.0" />
   </ItemGroup>
 
 </Project>

@@ -7,7 +7,8 @@
   "EntryDll": "LVCMod.dll",
   "MinimumApiVersion": "4.1.0",
   "UpdateKeys": [
-    "Github:Greem3/LVC-StardewValleyMod"
+    "Github:Greem3/LVC-StardewValleyMod",
+    "NexusMods:32572"
   ],
   "Dependencies": [
 

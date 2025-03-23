@@ -1,12 +1,15 @@
 {
-  "Name": "PVC Stardew Valley",
+  "Name": "LVC",
   "Author": "Greem",
   "Version": "1.0.0",
-  "Description": "This mod add a voice chat with proximity",
-  "UniqueID": "Greem.PVC",
-  "EntryDll": "PVCMod.dll",
+  "Description": "This mod adds a voice chat based on each player's zone.",
+  "UniqueID": "Greem.LVC",
+  "EntryDll": "LVCMod.dll",
   "MinimumApiVersion": "4.1.0",
   "UpdateKeys": [
+    "Github:Greem3/LVC-StardewValleyMod"
+  ],
+  "Dependencies": [
 
   ]
 }

@@ -8,7 +8,7 @@ namespace LVCMod
 {
     internal sealed class ModEntry : Mod
     {
-        private ModConfig Config;
+        public ModConfig Config;
         private DiscordBot? Bot;
 
         public override void Entry(IModHelper helper)
@@ -16,27 +16,52 @@ namespace LVCMod
             helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
         }
 
-        private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        private async void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
-            Config = Helper.ReadConfig<ModConfig>();
-
             if (!Context.IsMultiplayer)
                 return;
 
-            Helper.Events.Multiplayer.ModMessageReceived += OnMessageReceived;
-            Helper.Events.Player.Warped += OnWarped;
+            Config = Helper.ReadConfig<ModConfig>();
+
+            if (Config.DiscordUserId == 0)
+            {
+                Monitor.Log("You have to put your discord id!\r\n\r\nVoice chat won't work for you.", LogLevel.Error);
+                return;
+            }
+
+            LoadEvents();
 
             if (Context.IsMainPlayer)
             {
-                Bot = new DiscordBot(Config);
+                if (Config.HostDiscordServerId == 0)
+                {
+                    Monitor.Log(
+                        "As the main player you have to put your guild ID!\r\n\r\nVoice chat won't work.",
+                        LogLevel.Error
+                    );
+                    UnloadEvents();
+                    return;
+                }
+
+                if (Config.HostDiscordBotToken == "")
+                {
+                    Monitor.Log(
+                        "As the main player, you have to enter your bot's token!\r\n\r\nVoice chat won't work.",
+                        LogLevel.Error
+                    );
+                    UnloadEvents();
+                    return;
+                }
+
+                Bot = new DiscordBot(this);
+                await Bot.WaitForReady();
 
                 ulong saveId = Game1.uniqueIDForThisGame;
 
-                if (Config.HostSavesData.ContainsKey(saveId))
-                    return;
+                Config.HostSavesData.TryAdd(saveId, new ModConfig.PlayerData());
 
-                Config.HostSavesData.Add(saveId, new ModConfig.PlayerData());
-                Config.HostSavesData[saveId].Players.Add(Game1.MasterPlayer.UniqueMultiplayerID, Config.DiscordUserId);
+                Config.HostSavesData[saveId].Players[Game1.MasterPlayer.UniqueMultiplayerID] = Config.DiscordUserId;
+                await Bot.ChangeMuteUserState(Game1.MasterPlayer.UniqueMultiplayerID, Config.DiscordUserMicrophoneActivated);
 
                 SaveConfig();
                 return;
@@ -62,10 +87,9 @@ namespace LVCMod
             {
                 ModConfig clientConfig = e.ReadAs<ModConfig>();
 
-                if (Config.HostSavesData[Game1.uniqueIDForThisGame].Players.ContainsKey(e.FromPlayerID))
-                    return;
+                Config.HostSavesData[Game1.uniqueIDForThisGame].Players[e.FromPlayerID] = clientConfig.DiscordUserId;
 
-                Config.HostSavesData[Game1.uniqueIDForThisGame].Players.Add(e.FromPlayerID, clientConfig.DiscordUserId);
+                await Bot.ChangeMuteUserState(clientConfig.DiscordUserId, clientConfig.DiscordUserMicrophoneActivated);
 
                 SaveConfig();
 
@@ -74,24 +98,50 @@ namespace LVCMod
 
             if (e.Type == "LVCPlayerWarped")
             {
-                var data = e.ReadAs<(long PlayerName, string newLocation, string oldLocation)>();
+                var data = e.ReadAs<(long PlayerId, string NewLocation)>();
 
-                await Bot.MoveToVoice(data.PlayerName, data.newLocation, data.oldLocation);
+                await Bot.MoveToVoice(data.PlayerId, data.NewLocation);
 
                 return;
             }
 
+            if (e.Type == "LVCChangeMicrophoneState")
+            {
+                var playerInfo = e.ReadAs<(long Id, bool State)>();
+
+                await Bot.ChangeMuteUserState(playerInfo.Id, playerInfo.State);
+                return;
+            }
+
+            if (e.Type == "LVCChangeDeaferState")
+            {
+                var playerInfo = e.ReadAs<(long Id, bool State)>();
+
+                await Bot.ChangeDeaferUserState(playerInfo.Id, playerInfo.State);
+                return;
+            }
+        }
+
+        private async void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
+        {
+            UnloadEvents();
+
+            if (!Context.IsMainPlayer)
+                return;
+
+            if (Config.DeleteVoiceChannels)
+                await Bot.CloseVoiceChat();
         }
 
         private async void OnWarped(object? sender, WarpedEventArgs e)
         {
             if (Context.IsMainPlayer)
             {
-                await Bot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name, e.OldLocation.Name);
+                await Bot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name);
                 return;
             }
 
-            (long, string, string) message = (e.Player.UniqueMultiplayerID, e.NewLocation.Name ,e.OldLocation.Name);
+            (long, string) message = (e.Player.UniqueMultiplayerID, e.NewLocation.Name);
 
             Helper.Multiplayer.SendMessage(
                 message,
@@ -101,10 +151,74 @@ namespace LVCMod
                 );
         }
 
+        private async void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
+        {
+
+            if (e.Button == Config.ChangeStateMicrophone)
+            {
+                Config.DiscordUserMicrophoneActivated = !Config.DiscordUserMicrophoneActivated;
+                SaveConfig();
+
+                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.DiscordUserMicrophoneActivated);
+
+                if (Context.IsMainPlayer)
+                {
+                    await Bot.ChangeMuteUserState(userInfo.Id, userInfo.State);
+                    return;
+                }
+
+                Helper.Multiplayer.SendMessage(
+                    userInfo,
+                    "LVCChangeMicrophoneState",
+                    new[] { ModManifest.UniqueID },
+                    new [] { Game1.MasterPlayer.UniqueMultiplayerID }
+                    );
+
+                return;
+            }
+
+            if (e.Button == Config.ChangeStateAudio)
+            {
+                Config.DiscordUserDeaferActivated = !Config.DiscordUserDeaferActivated;
+                SaveConfig();
+
+                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.DiscordUserDeaferActivated);
+
+                if (Context.IsMainPlayer)
+                {
+                    await Bot.ChangeDeaferUserState(userInfo.Id, userInfo.State);
+                    return;
+                }
+
+                Helper.Multiplayer.SendMessage(
+                    userInfo,
+                    "LVCChangeDeaferState",
+                    new[] { ModManifest.UniqueID },
+                    new[] { Game1.MasterPlayer.UniqueMultiplayerID }
+                );
+                return;
+            }
+        }
+
+        private void LoadEvents()
+        {
+            Helper.Events.Multiplayer.ModMessageReceived += OnMessageReceived;
+            Helper.Events.Player.Warped += OnWarped;
+            Helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+            Helper.Events.Input.ButtonPressed += OnButtonPressed;
+        }
+
+        private void UnloadEvents()
+        {
+            Helper.Events.Multiplayer.ModMessageReceived -= OnMessageReceived;
+            Helper.Events.Player.Warped -= OnWarped;
+            Helper.Events.GameLoop.ReturnedToTitle -= OnReturnedToTitle;
+            Helper.Events.Input.ButtonPressed -= OnButtonPressed;
+        }
+
         private void SaveConfig()
         {
             Helper.WriteConfig(Config);
-            Bot.UpdateConfig(Config);
         }
     }
 }

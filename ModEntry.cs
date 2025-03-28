@@ -1,31 +1,36 @@
 ﻿using System;
 using System.Diagnostics;
+using GenericModConfigMenu;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 
 namespace LVCMod
 {
-    internal sealed class ModEntry : Mod
+    internal sealed partial class ModEntry : Mod
     {
         public ModConfig Config;
-        private DiscordBot? Bot;
+        private Bot HostBot;
 
         public override void Entry(IModHelper helper)
         {
             helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
         }
+
+        #region EVENTS
 
         private async void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             if (!Context.IsMultiplayer)
                 return;
 
-            Config = Helper.ReadConfig<ModConfig>();
-
-            if (Config.DiscordUserId == 0)
+            if (Config.User.DiscordId == 0)
             {
-                Monitor.Log("You have to put your discord id!\r\n\r\nVoice chat won't work for you.", LogLevel.Error);
+                Monitor.Log(
+                    Helper.Translation.Get("no-user-id.error"),
+                    LogLevel.Error
+                );
                 return;
             }
 
@@ -33,46 +38,46 @@ namespace LVCMod
 
             if (Context.IsMainPlayer)
             {
-                if (Config.HostDiscordServerId == 0)
+                if (Config.Host.DiscordGuildId == 0)
                 {
                     Monitor.Log(
-                        "As the main player you have to put your guild ID!\r\n\r\nVoice chat won't work.",
+                        Helper.Translation.Get("no-guild-id.error"),
                         LogLevel.Error
                     );
                     UnloadEvents();
                     return;
                 }
 
-                if (Config.HostDiscordBotToken == "")
+                if (Config.Bot.Token == "")
                 {
                     Monitor.Log(
-                        "As the main player, you have to enter your bot's token!\r\n\r\nVoice chat won't work.",
+                        Helper.Translation.Get("no-bot-token.error"),
                         LogLevel.Error
                     );
                     UnloadEvents();
                     return;
                 }
 
-                Bot = new DiscordBot(this);
-                await Bot.WaitForReady();
+                HostBot = new Bot(this);
+                await HostBot.WaitForReady();
 
                 ulong saveId = Game1.uniqueIDForThisGame;
 
-                Config.HostSavesData.TryAdd(saveId, new ModConfig.PlayerData());
+                Config.Host.SavesData.TryAdd(saveId, new PlayerData());
 
-                Config.HostSavesData[saveId].Players[Game1.MasterPlayer.UniqueMultiplayerID] = Config.DiscordUserId;
-                await Bot.ChangeMuteUserState(Game1.MasterPlayer.UniqueMultiplayerID, Config.DiscordUserMicrophoneActivated);
+                Config.Host.SavesData[saveId].Players[Game1.MasterPlayer.UniqueMultiplayerID] = Config.User.DiscordId;
+
+                _ = HostBot.ChangeBothUserStates(
+                    Game1.MasterPlayer.UniqueMultiplayerID,
+                    Config.User.MicrophoneActivated,
+                    Config.User.DeaferDesactivated
+                );
 
                 SaveConfig();
                 return;
             }
 
-            Helper.Multiplayer.SendMessage(
-                Config,
-                "LVCJoined",
-                new[] {ModManifest.UniqueID},
-                new[] { Game1.MasterPlayer.UniqueMultiplayerID }
-                );
+            SendMessageToMain(Config, MessageTypes.PlayerJoined);
         }
 
         private async void OnMessageReceived(object? sender, ModMessageReceivedEventArgs e)
@@ -83,41 +88,43 @@ namespace LVCMod
             if (!Context.IsMainPlayer)
                 return;
 
-            if (e.Type == "LVCJoined")
+            if (e.Type == (MessageType)MessageTypes.PlayerJoined)
             {
                 ModConfig clientConfig = e.ReadAs<ModConfig>();
 
-                Config.HostSavesData[Game1.uniqueIDForThisGame].Players[e.FromPlayerID] = clientConfig.DiscordUserId;
+                Config.Host.SavesData[Game1.uniqueIDForThisGame].Players[e.FromPlayerID] = clientConfig.User.DiscordId;
 
-                await Bot.ChangeMuteUserState(clientConfig.DiscordUserId, clientConfig.DiscordUserMicrophoneActivated);
+                _ = HostBot.ChangeMuteUserState(clientConfig.User.DiscordId, clientConfig.User.MicrophoneActivated);
 
                 SaveConfig();
 
                 return;
             }
 
-            if (e.Type == "LVCPlayerWarped")
+            if (e.Type == (MessageType)MessageTypes.PlayerWarped)
             {
                 var data = e.ReadAs<(long PlayerId, string NewLocation)>();
 
-                await Bot.MoveToVoice(data.PlayerId, data.NewLocation);
+                _ = HostBot.MoveToVoice(data.PlayerId, data.NewLocation);
 
                 return;
             }
 
-            if (e.Type == "LVCChangeMicrophoneState")
+            if (e.Type == (MessageType)MessageTypes.ChangePlayerMicrophoneState)
             {
                 var playerInfo = e.ReadAs<(long Id, bool State)>();
 
-                await Bot.ChangeMuteUserState(playerInfo.Id, playerInfo.State);
+                _ = HostBot.ChangeMuteUserState(playerInfo.Id, playerInfo.State);
+
                 return;
             }
 
-            if (e.Type == "LVCChangeDeaferState")
+            if (e.Type == (MessageType)MessageTypes.ChangePlayerDeaferState)
             {
                 var playerInfo = e.ReadAs<(long Id, bool State)>();
 
-                await Bot.ChangeDeaferUserState(playerInfo.Id, playerInfo.State);
+                _ = HostBot.ChangeDeaferUserState(playerInfo.Id, playerInfo.State);
+
                 return;
             }
         }
@@ -129,75 +136,78 @@ namespace LVCMod
             if (!Context.IsMainPlayer)
                 return;
 
-            if (Config.DeleteVoiceChannels)
-                await Bot.CloseVoiceChat();
+            if (Config.Bot.DeleteVoiceChats)
+            {
+                await HostBot.ResetUsersState();
+                await HostBot.CloseVoiceChat();
+            }
         }
 
         private async void OnWarped(object? sender, WarpedEventArgs e)
         {
             if (Context.IsMainPlayer)
             {
-                await Bot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name);
+                _ = HostBot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name);
                 return;
             }
 
             (long, string) message = (e.Player.UniqueMultiplayerID, e.NewLocation.Name);
 
-            Helper.Multiplayer.SendMessage(
-                message,
-                "LVCPlayerWarped",
-                new[] { ModManifest.UniqueID },
-                new[] { Game1.MasterPlayer.UniqueMultiplayerID }
-                );
+            SendMessageToMain(message, MessageTypes.PlayerWarped);
         }
 
         private async void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
 
-            if (e.Button == Config.ChangeStateMicrophone)
+            if (e.Button == Config.User.ChangeStateMicrophone)
             {
-                Config.DiscordUserMicrophoneActivated = !Config.DiscordUserMicrophoneActivated;
+                Config.User.MicrophoneActivated = !Config.User.MicrophoneActivated;
                 SaveConfig();
 
-                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.DiscordUserMicrophoneActivated);
+                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.User.MicrophoneActivated);
 
                 if (Context.IsMainPlayer)
                 {
-                    await Bot.ChangeMuteUserState(userInfo.Id, userInfo.State);
+                    _ = HostBot.ChangeMuteUserState(userInfo.Id, userInfo.State);
                     return;
                 }
 
-                Helper.Multiplayer.SendMessage(
-                    userInfo,
-                    "LVCChangeMicrophoneState",
-                    new[] { ModManifest.UniqueID },
-                    new [] { Game1.MasterPlayer.UniqueMultiplayerID }
-                    );
+                SendMessageToMain(userInfo, MessageTypes.ChangePlayerMicrophoneState);
 
                 return;
             }
 
-            if (e.Button == Config.ChangeStateAudio)
+            if (e.Button == Config.User.ChangeStateAudio)
             {
-                Config.DiscordUserDeaferActivated = !Config.DiscordUserDeaferActivated;
+                Config.User.DeaferDesactivated = !Config.User.DeaferDesactivated;
                 SaveConfig();
 
-                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.DiscordUserDeaferActivated);
+                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.User.DeaferDesactivated);
 
                 if (Context.IsMainPlayer)
                 {
-                    await Bot.ChangeDeaferUserState(userInfo.Id, userInfo.State);
+                    _ = HostBot.ChangeDeaferUserState(userInfo.Id, userInfo.State);
                     return;
                 }
 
-                Helper.Multiplayer.SendMessage(
-                    userInfo,
-                    "LVCChangeDeaferState",
-                    new[] { ModManifest.UniqueID },
-                    new[] { Game1.MasterPlayer.UniqueMultiplayerID }
-                );
+                SendMessageToMain(userInfo, MessageTypes.ChangePlayerDeaferState);
+
                 return;
             }
+        }
+
+        #endregion
+
+        #region METHODS
+
+        private void SendMessageToMain<TMessage>(TMessage message, MessageType messageType)
+        {
+            Helper.Multiplayer.SendMessage(
+                message,
+                messageType,
+                new[] { ModManifest.UniqueID },
+                new[] { Game1.MasterPlayer.UniqueMultiplayerID }
+            );
         }
 
         private void LoadEvents()
@@ -220,5 +230,7 @@ namespace LVCMod
         {
             Helper.WriteConfig(Config);
         }
+
+        #endregion
     }
 }

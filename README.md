@@ -2,7 +2,7 @@
 
 ## [About This Mod]
 
-This mod adds a voice chat based on each player's zone.
+This mod adds a voice chat based on each player's zone using discord.
 
 ## [How it works]
 

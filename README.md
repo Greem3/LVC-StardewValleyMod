@@ -19,14 +19,16 @@ You don't need to create each channel individually, as the Discord bot does this
 
 Clarification: This mod uses Discord to divide users by location.
 
+All these steps can be made easier if you have the "Generic Mod Config Menu" mod.
+
 1 - Discord Configuration
 
 - Copy your discord user id
-- Go to "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\mods\LVCMod\config.json" (If you don't have it purchased on Steam, you have to look for it in the other folder you have)
-- Paste your user id into "DiscordUserId"
+- (Only without "Generic Mod Config Menu"): Go to "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\mods\LVCMod\config.json" (If you don't have it purchased on Steam, you have to look for it in the other folder you have).
+- Paste your user id into "Discord Id"
 - Create a Discord Server (or use and existing one)
 - Copy your guild ID (To be able to do this, you have to activate developer mode)
-- Paste your guild id into "HostDiscordServerId"
+- Paste your guild id into "Discord Guild Id"
 
 2 - Bot Configuration
 
@@ -34,8 +36,8 @@ Clarification: This mod uses Discord to divide users by location.
 - Click on "New Application" and give your bot a name
 - Go to "Bot" section, and click the button that says "Reset Token"
 - Copy your bot token
-- Go to "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\mods\LVCMod\config.json"
-- Paste your bot token into "HostDiscordBotToken"
+- (Only without "Generic Mod Config Menu"): Go to "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\mods\LVCMod\config.json"
+- Paste your bot token into "Token"
 - Return to the Discord Developer Portal and set the bot's permissions. You can find them below this section.
 - And you're done! :D
 
@@ -54,17 +56,27 @@ Or you can give it administrator and that's it.
 
 ## [Config Voice Chat]
 
-- "DiscordUserId": It is actually used to save your user's Discord ID, anyone who has the mod will be able to access this ID (it is already public).
-- "HostDiscordServerId": Here you save the guild id that will be used as voice chat (Only the host of the game will be used).
-- "HostDiscordBotToken": This is your Discord bot token. Please be careful not to share it with anyone. (Only the match host's token is used.)
-- "ITalkChannelName": It is used to define which is the default chat where no one can speak and the bot will know if the player wants to use the voice chat or not. (If the voice chat doesn't exist, the bot will create a new one with the same name)
-- "StardewVoiceChatsCategory": It is used to tell the bot where to create all the voice chats for the locations to prevent it from creating them anywhere. (If the category doesn't exist, the bot will create a new one with the same name)
-- "DiscordUserMicrophoneActivated": It is used so that the bot knows whether to mute you or not the next time you enter a game.
-- "DiscordUserDeaferActivated": It is used so that the bot knows whether to deaf you or not the next time you enter a game.
-- "DeleteVoiceChannels": This is used to delete all voice channels (except ITalk) created by the bot when you return to the game (it doesn't work if you quit the game directly). If true, it deletes them; otherwise, it does nothing. This improves performance the next time you play on the server, but at the cost of wasting channel space on Discord.
-- "ChangeStateMicrophone": Defines the key to change the state of the user's microphone (mute or unmute)
-- "ChangeStateAudio": Defines the key to change the user's audio state (Deaf or Undeaf)
-- "HostSavesData": It's better if you don't touch this, but it's used to save the Discord IDs of all the users you have in your settings.
+The mod has support for "Generic Mod Config Menu"
+
+### User
+
+- "Discord ID": It is used to save your user's Discord ID, anyone who has the mod will be able to access this ID (it is already public).
+- "Microphone Activated": It is used to save the state of your microphone, if it is activated or not.
+- "Deaf Desactivated": It is used to save the state of your deaf, if it is activated or not.
+- "Change State Microphone": It is used to save the key to change the state of the microphone.
+- "Change State Audio": It is used to save the key to change the state of the deaf.
+
+### Host
+
+- "Discord Guild Id": Here you save the guild id that will be used as voice chat (Only the host of the game will be used).
+- "SavesData": It's better if you don't touch this, but it's used to save the Discord IDs of all the users you have in your settings.
+
+### Bot
+
+- "Token": Here you save the token of your bot.
+- "Main Voice Chat Name": Here you save the name of the main voice chat that will be used to tell the bot whether you will use voice chat or not.
+- "Voice Chat Category Name": Here you save the name of the category where the voice chats will be created.
+- "Delete Voice Chats": This is used to tell the bot whether to delete all voice channels it created (other than the main one) when returning to the main menu (it doesn't work if you exit the game directly)
 
 ## [Possible doubts]
 
@@ -91,6 +103,7 @@ No, the mod is based on the use of Discord Guilds to create voice chats.
 - Why does the game crash on me?
 
 There are several possible reasons, one is that some of the necessary data in config.json is not filled in, another is that the bot is not on your Discord server, and another is that your bot's token is incorrect.
+If the game crashes, please report the error at: https://github.com/Greem3/LVC-StardewValleyMod/discussions
 
 ## [Default Controls]
 

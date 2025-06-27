@@ -19,7 +19,17 @@ namespace LVCMod
         /// <returns>Task</returns>
         public async Task MoveToVoice(long playerId, string newLocation)
         {
-            _ = MoveToVoice(GetDiscordFarmerId(playerId), newLocation);
+            _ = MoveToVoice(GetDiscordFarmerId(playerId), MergeLocations(newLocation));
+        }
+
+        private static string MergeLocations(string currentLocation) {
+            if (currentLocation.Contains("UndergroundMine")) {
+                return currentLocation.Substring(0, currentLocation.Length - 1);
+            } else if (currentLocation == "FarmHouse") {
+                return "Cabin";
+            }
+
+            return currentLocation;
         }
 
         public async Task MoveToVoice(ulong playerId, string? newLocation)

@@ -6,16 +6,14 @@
     "ChangeStateMicrophone": "H",
     "ChangeStateAudio": "J"
   },
-  "Host": {
-    "DiscordGuildId": 0,
-    "SavesData": {
-
-    }
-  },
   "Bot": {
     "Token": "",
     "MainVoiceChatName": "Talk",
     "VoiceChatsCategoryName": "Stardew Valley LVC",
-    "DeleteVoiceChat": true
+    "DeleteVoiceChats": true
+  },
+  "Host": {
+    "DiscordGuildId": 0,
+    "SavesData": {}
   }
 }

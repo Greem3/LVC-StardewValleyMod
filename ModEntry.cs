@@ -1,52 +1,83 @@
 ﻿using System;
+using System.Diagnostics;
+using GenericModConfigMenu;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 
 namespace LVCMod
 {
-    internal sealed class ModEntry : Mod
+    internal sealed partial class ModEntry : Mod
     {
-        private ModConfig Config;
-        private DiscordBot? Bot;
+        public ModConfig Config;
+        private Bot HostBot;
 
         public override void Entry(IModHelper helper)
         {
-            Config = Helper.ReadConfig<ModConfig>();
-
             helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
         }
 
-        private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        #region EVENTS
+
+        private async void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             if (!Context.IsMultiplayer)
                 return;
 
-            Helper.Events.Multiplayer.ModMessageReceived += OnMessageReceived;
-            Helper.Events.Player.Warped += OnWarped;
+            if (Config.User.DiscordId == 0)
+            {
+                Monitor.Log(
+                    Helper.Translation.Get("no-user-id.error"),
+                    LogLevel.Error
+                );
+                return;
+            }
+
+            LoadEvents();
 
             if (Context.IsMainPlayer)
             {
-                Bot = new DiscordBot(Config);
+                if (Config.Host.DiscordGuildId == 0)
+                {
+                    Monitor.Log(
+                        Helper.Translation.Get("no-guild-id.error"),
+                        LogLevel.Error
+                    );
+                    UnloadEvents();
+                    return;
+                }
+
+                if (Config.Bot.Token == "")
+                {
+                    Monitor.Log(
+                        Helper.Translation.Get("no-bot-token.error"),
+                        LogLevel.Error
+                    );
+                    UnloadEvents();
+                    return;
+                }
+
+                HostBot = new Bot(this);
+                await HostBot.WaitForReady();
 
                 ulong saveId = Game1.uniqueIDForThisGame;
 
-                if (Config.HostSavesData.ContainsKey(saveId))
-                    return;
+                Config.Host.SavesData.TryAdd(saveId, new PlayerData());
 
-                Monitor.Log("Guardando nuevo mundo...", LogLevel.Info);
-                Config.HostSavesData.Add(saveId, new ModConfig.PlayerData());
-                Config.HostSavesData[saveId].Players.Add(Game1.MasterPlayer.UniqueMultiplayerID, Config.HostDiscordUserId);
+                Config.Host.SavesData[saveId].Players[Game1.MasterPlayer.UniqueMultiplayerID] = Config.User.DiscordId;
+
+                _ = HostBot.ChangeBothUserStates(
+                    Game1.MasterPlayer.UniqueMultiplayerID,
+                    Config.User.MicrophoneActivated,
+                    Config.User.DeaferDesactivated
+                );
 
                 SaveConfig();
+                return;
             }
 
-            Helper.Multiplayer.SendMessage(
-                Config,
-                "PVCJoined",
-                new[] {ModManifest.UniqueID},
-                new[] { Game1.MasterPlayer.UniqueMultiplayerID }
-                );
+            SendMessageToMain(Config, MessageTypes.PlayerJoined);
         }
 
         private async void OnMessageReceived(object? sender, ModMessageReceivedEventArgs e)
@@ -54,52 +85,152 @@ namespace LVCMod
             if (e.FromModID != ModManifest.UniqueID)
                 return;
 
-            if (e.Type == "PVCJoined")
+            if (!Context.IsMainPlayer)
+                return;
+
+            if (e.Type == (MessageType)MessageTypes.PlayerJoined)
             {
                 ModConfig clientConfig = e.ReadAs<ModConfig>();
 
-                if (Config.HostSavesData[Game1.uniqueIDForThisGame].Players.ContainsKey(e.FromPlayerID))
-                    return;
+                Config.Host.SavesData[Game1.uniqueIDForThisGame].Players[e.FromPlayerID] = clientConfig.User.DiscordId;
 
-                Config.HostSavesData[Game1.uniqueIDForThisGame].Players.Add(e.FromPlayerID, clientConfig.HostDiscordUserId);
+                _ = HostBot.ChangeMuteUserState(clientConfig.User.DiscordId, clientConfig.User.MicrophoneActivated);
 
-                Monitor.Log("Guardando nuevo jugador de la partida...", LogLevel.Info);
                 SaveConfig();
+
+                return;
             }
 
-            if (e.Type == "PVCPlayerWarped")
+            if (e.Type == (MessageType)MessageTypes.PlayerWarped)
             {
-                var data = e.ReadAs<(Farmer Player, GameLocation beforeLocation)>();
+                var data = e.ReadAs<(long PlayerId, string NewLocation)>();
 
-                Monitor.Log("Jugador warpeado", LogLevel.Info);
-                await Bot.MoveToVoice(data.Player, data.beforeLocation.Name);
+                _ = HostBot.MoveToVoice(data.PlayerId, data.NewLocation);
+
+                return;
             }
 
+            if (e.Type == (MessageType)MessageTypes.ChangePlayerMicrophoneState)
+            {
+                var playerInfo = e.ReadAs<(long Id, bool State)>();
+
+                _ = HostBot.ChangeMuteUserState(playerInfo.Id, playerInfo.State);
+
+                return;
+            }
+
+            if (e.Type == (MessageType)MessageTypes.ChangePlayerDeaferState)
+            {
+                var playerInfo = e.ReadAs<(long Id, bool State)>();
+
+                _ = HostBot.ChangeDeaferUserState(playerInfo.Id, playerInfo.State);
+
+                return;
+            }
+        }
+
+        private async void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
+        {
+            UnloadEvents();
+
+            if (!Context.IsMainPlayer)
+                return;
+
+            if (Config.Bot.DeleteVoiceChats)
+            {
+                await HostBot.ResetUsersState();
+                await HostBot.CloseVoiceChat();
+            }
         }
 
         private async void OnWarped(object? sender, WarpedEventArgs e)
         {
-            if (e.Player == Game1.MasterPlayer)
+            if (Context.IsMainPlayer)
             {
-                Monitor.Log("Anfitrion Warpeado", LogLevel.Info);
-                await Bot.MoveToVoice(e.Player, e.OldLocation.Name);
+                _ = HostBot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name);
                 return;
             }
 
-            (Farmer, GameLocation) message = (e.Player, e.OldLocation);
+            (long, string) message = (e.Player.UniqueMultiplayerID, e.NewLocation.Name);
 
+            SendMessageToMain(message, MessageTypes.PlayerWarped);
+        }
+
+        private async void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
+        {
+
+            if (e.Button == Config.User.ChangeStateMicrophone)
+            {
+                Config.User.MicrophoneActivated = !Config.User.MicrophoneActivated;
+                SaveConfig();
+
+                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.User.MicrophoneActivated);
+
+                if (Context.IsMainPlayer)
+                {
+                    _ = HostBot.ChangeMuteUserState(userInfo.Id, userInfo.State);
+                    return;
+                }
+
+                SendMessageToMain(userInfo, MessageTypes.ChangePlayerMicrophoneState);
+
+                return;
+            }
+
+            if (e.Button == Config.User.ChangeStateAudio)
+            {
+                Config.User.DeaferDesactivated = !Config.User.DeaferDesactivated;
+                SaveConfig();
+
+                (long Id, bool State) userInfo = (Game1.player.UniqueMultiplayerID, Config.User.DeaferDesactivated);
+
+                if (Context.IsMainPlayer)
+                {
+                    _ = HostBot.ChangeDeaferUserState(userInfo.Id, userInfo.State);
+                    return;
+                }
+
+                SendMessageToMain(userInfo, MessageTypes.ChangePlayerDeaferState);
+
+                return;
+            }
+        }
+
+        #endregion
+
+        #region METHODS
+
+        private void SendMessageToMain<TMessage>(TMessage message, MessageType messageType)
+        {
             Helper.Multiplayer.SendMessage(
                 message,
-                "PVCPlayerWarped",
+                messageType,
                 new[] { ModManifest.UniqueID },
                 new[] { Game1.MasterPlayer.UniqueMultiplayerID }
-                );
+            );
+        }
+
+        private void LoadEvents()
+        {
+            Helper.Events.Multiplayer.ModMessageReceived += OnMessageReceived;
+            Helper.Events.Player.Warped += OnWarped;
+            Helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+            Helper.Events.Input.ButtonPressed += OnButtonPressed;
+        }
+
+        private void UnloadEvents()
+        {
+            Helper.Events.Multiplayer.ModMessageReceived -= OnMessageReceived;
+            Helper.Events.Player.Warped -= OnWarped;
+            Helper.Events.GameLoop.ReturnedToTitle -= OnReturnedToTitle;
+            Helper.Events.Input.ButtonPressed -= OnButtonPressed;
         }
 
         private void SaveConfig()
         {
             Helper.WriteConfig(Config);
-            Bot.UpdateConfig(Config);
         }
+
+        #endregion
     }
 }

@@ -1,0 +1,13 @@
+{
+  "DiscordUserId": 0,
+  "HostDiscordServerId": 0,
+  "HostDiscordBotToken": "",
+  "ITalkChannelName": "ITalk",
+  "StardewVoiceChatsCategory": "Stardew Valley LVC",
+  "DiscordUserMicrophoneActivated": true,
+  "DiscordUserDeaferActivated": true,
+  "DeleteVoiceChannels": true,
+  "ChangeStateMicrophone": "H",
+  "ChangeStateAudio": "J",
+  "HostSavesData": {}
+}

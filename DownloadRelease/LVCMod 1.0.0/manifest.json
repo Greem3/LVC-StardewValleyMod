@@ -1,15 +1,14 @@
 {
   "Name": "LVC",
   "Author": "Greem",
-  "Version": "1.2.0",
+  "Version": "1.0.0",
   "Description": "This mod adds a voice chat based on each player's zone.",
   "UniqueID": "Greem.LVC",
   "EntryDll": "LVCMod.dll",
   "MinimumApiVersion": "4.1.0",
   "UpdateKeys": [
     "Github:Greem3/LVC-StardewValleyMod",
-    "NexusMods:32572",
-    "CurseForge:1226218"
+    "NexusMods:32572"
   ],
   "Dependencies": [
 

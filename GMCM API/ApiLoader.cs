@@ -145,6 +145,13 @@ namespace LVCMod
 
             GCMApi.AddKeybind(
                 ModManifest,
+                name: () => Helper.Translation.Get("bot-state.label"),
+                getValue: () => Config.Bot.ChangeBotState,
+                setValue: value => Config.Bot.ChangeBotState = value
+            );
+
+            GCMApi.AddKeybind(
+                ModManifest,
                 name: () => Helper.Translation.Get("microphone-state.label"),
                 getValue: () => Config.User.ChangeStateMicrophone,
                 setValue: value => Config.User.ChangeStateMicrophone = value

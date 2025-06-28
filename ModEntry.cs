@@ -4,6 +4,9 @@ using GenericModConfigMenu;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using Discord.Rest;
+using Discord.WebSocket;
+using Discord;
 
 namespace LVCMod
 {
@@ -193,6 +196,15 @@ namespace LVCMod
                 SendMessageToMain(userInfo, MessageTypes.ChangePlayerDeaferState);
 
                 return;
+            }
+
+            if(e.Button == Config.Bot.ChangeBotState) {
+
+                foreach (var player in Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys) {
+                    _ = HostBot.MoveToVoice(player, Config.Bot.MainVoiceChatName);
+                }
+
+                Config.Bot.IsBotActive = !Config.Bot.IsBotActive;
             }
         }
 

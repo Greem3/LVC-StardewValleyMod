@@ -199,12 +199,22 @@ namespace LVCMod
             }
 
             if(e.Button == Config.Bot.ChangeBotState) {
+                if (!Context.IsMainPlayer)
+                    return;
 
-                foreach (var player in Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys) {
-                    _ = HostBot.MoveToVoice(player, Config.Bot.MainVoiceChatName);
+                if (Config.Bot.IsBotActive) {
+                    foreach (var player in Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys) {
+                        _ = HostBot.MoveToVoice(player, Config.Bot.MainVoiceChatName);
+                    }
+                    Config.Bot.IsBotActive = false;
+                } else {
+                    Config.Bot.IsBotActive = true;
+                    foreach (var player in Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys) {
+                        Farmer? farmer = Game1.GetPlayer(player);
+                        string farmerLocation = farmer == default ? Config.Bot.MainVoiceChatName : farmer.currentLocation.Name;
+                        _ = HostBot.MoveToVoice(player, farmerLocation);
+                    }
                 }
-
-                Config.Bot.IsBotActive = !Config.Bot.IsBotActive;
             }
         }
 

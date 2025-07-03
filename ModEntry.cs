@@ -106,6 +106,9 @@ namespace LVCMod
 
             if (e.Type == (MessageType)MessageTypes.PlayerWarped)
             {
+                if (!Config.Bot.IsWarpActive)
+                    return;
+
                 var data = e.ReadAs<(long PlayerId, string NewLocation)>();
 
                 _ = HostBot.MoveToVoice(data.PlayerId, data.NewLocation);
@@ -148,6 +151,9 @@ namespace LVCMod
 
         private async void OnWarped(object? sender, WarpedEventArgs e)
         {
+            if (!Config.Bot.IsWarpActive)
+                return;
+
             if (Context.IsMainPlayer)
             {
                 _ = HostBot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name);
@@ -198,21 +204,22 @@ namespace LVCMod
                 return;
             }
 
-            if(e.Button == Config.Bot.ChangeBotState) {
+            if(e.Button == Config.Bot.ChangeWarpState) {
                 if (!Context.IsMainPlayer)
                     return;
 
-                if (Config.Bot.IsBotActive) {
-                    foreach (var player in Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys) {
-                        _ = HostBot.MoveToVoice(player, Config.Bot.MainVoiceChatName);
-                    }
-                    Config.Bot.IsBotActive = false;
-                } else {
-                    Config.Bot.IsBotActive = true;
-                    foreach (var player in Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys) {
+                Config.Bot.IsWarpActive  = !Config.Bot.IsWarpActive;
+                List<long> players = Config.Host.SavesData[Game1.uniqueIDForThisGame].Players.Keys.ToList();
+
+                if (Config.Bot.IsWarpActive) {
+                    foreach (var player in players) {
                         Farmer? farmer = Game1.GetPlayer(player);
                         string farmerLocation = farmer == default ? Config.Bot.MainVoiceChatName : farmer.currentLocation.Name;
                         _ = HostBot.MoveToVoice(player, farmerLocation);
+                    }
+                } else {
+                    foreach (var player in players) {
+                        _ = HostBot.MoveToVoice(player, Config.Bot.MainVoiceChatName);
                     }
                 }
             }

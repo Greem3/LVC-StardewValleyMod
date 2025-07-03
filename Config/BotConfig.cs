@@ -11,9 +11,9 @@ namespace LVCMod
 
         public string VoiceChatsCategoryName { get; set; } = "Stardew Valley LVC";
 
-        public bool IsBotActive { get; set; } = true;
+        public bool IsWarpActive { get; set; } = true;
 
-        public SButton ChangeBotState { get; set; } = SButton.L;
+        public SButton ChangeWarpState { get; set; } = SButton.L;
 
         public bool DeleteVoiceChats { get; set; } = true;
     }

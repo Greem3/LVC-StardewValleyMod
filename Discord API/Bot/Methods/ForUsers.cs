@@ -19,9 +19,6 @@ namespace LVCMod
         /// <returns>Task</returns>
         public async Task MoveToVoice(long playerId, string newLocation)
         {
-            if (!Mod.Config.Bot.IsBotActive)
-                return;
-
             newLocation = MergeLocations(newLocation);
             _ = MoveToVoice(GetDiscordFarmerId(playerId), newLocation);
         }

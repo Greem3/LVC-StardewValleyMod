@@ -146,8 +146,8 @@ namespace LVCMod
             GCMApi.AddKeybind(
                 ModManifest,
                 name: () => Helper.Translation.Get("bot-state.label"),
-                getValue: () => Config.Bot.ChangeBotState,
-                setValue: value => Config.Bot.ChangeBotState = value
+                getValue: () => Config.Bot.ChangeWarpState,
+                setValue: value => Config.Bot.ChangeWarpState = value
             );
 
             GCMApi.AddKeybind(

@@ -151,11 +151,11 @@ namespace LVCMod
 
         private async void OnWarped(object? sender, WarpedEventArgs e)
         {
-            if (!Config.Bot.IsWarpActive)
-                return;
-
             if (Context.IsMainPlayer)
             {
+                if (!Config.Bot.IsWarpActive)
+                    return;
+
                 _ = HostBot.MoveToVoice(e.Player.UniqueMultiplayerID, e.NewLocation.Name);
                 return;
             }
